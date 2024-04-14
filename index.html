@@ -10,63 +10,100 @@
   type="text/css"
   />
   <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js"></script>
-
-
   <style>
-    body {  
-      margin: 0;  
-      padding: 0; 
-    }  
-      
-    #map {  
-      position: absolute;  
-      top: 0;  
-      bottom: 0;  
-      width: 100%;  
-    }  
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    #map {
+        position: absolute;
+        top: 0;
+        bottom: 50px; /* Adjusted to accommodate the height of the #info div */
+        width: 100%;
+    }
+
+    #coordinates {
+      position: fixed; /* Fixed position to stay in the same place when scrolling */
+      top: 90px; /* Adjust the distance from the top as needed */
+      right: 10px; /* Adjust the distance from the right as needed */
+      width: 270px;
+      height: 140px;
+      background-color: #2c2a2a;
+      color: white;
+      border-radius: 10px; /* Add rounded corners */
+      padding: 10px; /* Add padding inside the box */
+      box-sizing: border-box; /* Include padding and border in the box's total width and height */
+    }
 
     #info {
       color: azure;
-      position: absolute;
-      margin: 20px;
-      width: 270px;
-      height: 230px;
-      top: 0;
-      bottom: 60%;
-      padding: 20px;
+      position: fixed; /* Position fixed at the bottom */
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%; /* Full width */
       background-color: #2c2a2a;
       font-family: sans-serif;
-      border-radius: 10px;
-    }
+      border-radius: 10px 10px 0 0; /* Rounded corners for the top */
+      display: flex;
+      justify-content: space-evenly; /* Align items with equal space between */
+      align-items: center; /* Vertically center text */
+      padding: 0 20px; /* Add padding to separate text from edges */
+  }
 
-    #search {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1;
-      width: 300px;
-      padding: 10px;
+  .info-item {
+      display: flex;
+      flex-direction: column; /* Stack items vertically */
+  }
+
+  .mapboxgl-ctrl-bottom-right {
+    bottom: 90px; /* Adjust the distance from the bottom to avoid overlapping with the bottom bar */
+  }
+
+  .mapboxgl-ctrl-bottom-left {
+    bottom: 90px; /* Adjust the distance from the bottom to avoid overlapping with the bottom bar */
+    top: unset; /* Remove any top positioning */
+  }
+
+
+
+  @media only screen and (min-width: 600px) {
+      .info-item {
+          flex-direction: row; /* Align items horizontally on larger screens */
+      }
+  }
+
+  #search {
+      width: 222px;
+      margin-left: 30px;
+      padding: 10px 0; /* Adjusted padding */
       background-color: white;
       border-radius: 5px;
-    }
-  </style>  
+  }
+  </style>
 </head>  
   
 <body>  
+  
+  <div id='map'></div>  
+  <div id="info"></div>
+  <div id="coords"></div>
+  
+  <div id="search">
+  </div>
 
-<div id='map'></div>  
-<div id="info"></div>
-<div id="search">
-</div>
 
-<script>  
+<script>
+
+const start = [19.3039985249618, 51.818758996283094]; // Starting position
 
 mapboxgl.accessToken = 'pk.eyJ1IjoicXVhcnphIiwiYSI6ImNsdXk0NnF4NDByMHAybG55aTliZ2xwMG4ifQ.n0rAXFpOzrOgntCfPhcDCA';  
 
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/streets-v12',
-  center: [-122.662323, 45.523751], // starting position
+  center: start, // starting position
   zoom: 12
 });
 
@@ -141,9 +178,14 @@ geocoder.on('result', (event) => {
 });
 
 // Add click event listener to the map
+// Add click event listener to the map
 map.on('click', (event) => {
   const coordinates = [event.lngLat.lng, event.lngLat.lat];
   getRoute(coordinates);
+  
+  document.getElementById('info').innerHTML = `
+  <p> Szukam najlepszej trasy... </p>
+    `;
 
   // Remove existing end destination layer if it exists
   if (map.getLayer('end-point')) {
@@ -175,12 +217,23 @@ map.on('click', (event) => {
       'circle-radius': 10,
       'circle-color': '#ff0000' // Red color for end destination
     }
+
   });
+
+  // Show coordinates
+  document.getElementById('coords').innerHTML = `
+  <div id="coordinates">
+    <p> Coordinates: </p>
+    <p>   Longitude: ${coordinates[0]} </p>
+    <p>   Latitude: ${coordinates[1]} </p>
+
+  </div>
+  `;
 });
+
 
 // create a function to make a directions request
 async function getRoute(end) {
-  const start = [-122.662323, 45.523751]; // Starting position
 
   // make a directions request using cycling profile
   const query = await fetch(
@@ -191,18 +244,31 @@ async function getRoute(end) {
   const data = json.routes[0];
 
   const distanceInKm = Math.floor(data.distance / 1000);
-  const costPerKm = 0.3; // $0.3 per kilometer
+  const costPerKm = 1.2; // zl0.3 per kilometer
   const totalCost = distanceInKm * costPerKm;
 
-  document.getElementById('info').innerHTML = 
-  `<p><strong>Trip duration: ${Math.floor(data.duration / 60)} min  </strong></p>
-   <p>Distance: ${Math.floor(data.distance / 1000)} km </p>
-   <p>Cost: $${totalCost.toFixed(2)}</p>
-   <p> </p>
-   <p> coordinates: </p>
-   <p>   0: ${end[0]} </p>
-   <p>   1: ${end[1]} </p>
-  `;
+  if(data.distance == 0){
+    document.getElementById('info').innerHTML = `
+      <p> Wybierz trase... </p>
+    `;
+  }
+
+  else {
+    document.getElementById('info').innerHTML = `
+      <div class="info-item">
+          <p><strong>Czas: .</strong> </p>
+          <p> ${Math.floor(data.duration / 60)} min</p>
+      </div>
+      <div class="info-item">
+          <p><strong>Dystans: .</strong> </p>
+          <p> ${Math.floor(data.distance / 1000)} km</p>
+      </div>
+      <div class="info-item">
+          <p><strong>Cena: .</strong></p>
+          <p> ${totalCost.toFixed(2)}zl</p>
+      </div>
+    `;
+  }
 
   const route = data.geometry.coordinates;
   const geojson = {
@@ -257,7 +323,7 @@ map.on('load', () => {
             properties: {},
             geometry: {
               type: 'Point',
-              coordinates: [-122.662323, 45.523751] // Starting position
+              coordinates: start // Starting position
             }
           }
         ]
@@ -265,11 +331,34 @@ map.on('load', () => {
     },
     layout: {
       'icon-image': 'custom-icon', // Use the name of the image added with map.addImage()
-      'icon-size': 0.09 // Adjust the icon size if needed
+      'icon-size': 0.05 // Adjust the icon size if needed
     }
   });
 
-  getRoute([-122.662323, 45.523751]); // Initial route
+  getRoute(start); // Initial route
+});
+
+const coordinatesForm = document.getElementById('coordinatesForm');
+const latitudeInput = document.getElementById('latitude');
+const longitudeInput = document.getElementById('longitude');
+
+// Set the initial values of the input fields
+latitudeInput.value = start[1];
+longitudeInput.value = start[0];
+
+coordinatesForm.addEventListener('submit', function(event) {
+    event.preventDefault(); // Prevent the default form submission
+
+    // Get the values from the input fields
+    const latitude = parseFloat(latitudeInput.value);
+    const longitude = parseFloat(longitudeInput.value);
+
+    // Update the start variable
+    start[1] = latitude;
+    start[0] = longitude;
+
+    // Display a confirmation message
+    alert('Start coordinates updated successfully!');
 });
 
 </script>  
