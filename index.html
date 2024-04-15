@@ -1,274 +1,300 @@
-<!DOCTYPE html>  
-<html lang='en'>  
-<head>  
-  <meta name='viewport' content='width=device-width, initial-scale=1' />  
-  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>  
-  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />  
-  <link
-  rel="stylesheet"
-  href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css"
-  type="text/css"
-  />
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1' />
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js'></script>
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css' rel='stylesheet' />
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css" type="text/css" />
   <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js"></script>
   <style>
     body {
-        margin: 0;
-        padding: 0;
+      margin: 0;
+      padding: 0;
     }
 
     #map {
-        position: absolute;
-        top: 0;
-        bottom: 50px; /* Adjusted to accommodate the height of the #info div */
-        width: 100%;
+      position: absolute;
+      top: 0;
+      bottom: 50px;
+      width: 100%;
     }
 
     #coordinates {
-      position: fixed; /* Fixed position to stay in the same place when scrolling */
-      top: 90px; /* Adjust the distance from the top as needed */
-      right: 10px; /* Adjust the distance from the right as needed */
+      position: fixed;
+      top: 90px;
+      right: 10px;
       width: 270px;
       height: 140px;
       background-color: #2c2a2a;
       color: white;
-      border-radius: 10px; /* Add rounded corners */
-      padding: 10px; /* Add padding inside the box */
-      box-sizing: border-box; /* Include padding and border in the box's total width and height */
+      border-radius: 10px;
+      padding: 10px;
+      box-sizing: border-box;
     }
 
     #info {
       color: azure;
-      position: fixed; /* Position fixed at the bottom */
+      position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      width: 100%; /* Full width */
+      width: 100%;
       background-color: #2c2a2a;
       font-family: sans-serif;
-      border-radius: 10px 10px 0 0; /* Rounded corners for the top */
+      border-radius: 10px 10px 0 0;
       display: flex;
-      justify-content: space-evenly; /* Align items with equal space between */
-      align-items: center; /* Vertically center text */
-      padding: 0 20px; /* Add padding to separate text from edges */
-  }
+      justify-content: space-evenly;
+      align-items: center;
+      padding: 0 20px;
+    }
 
-  .info-item {
+    .info-item {
       display: flex;
-      flex-direction: column; /* Stack items vertically */
-  }
+      flex-direction: column;
+    }
 
-  .mapboxgl-ctrl-bottom-right {
-    bottom: 90px; /* Adjust the distance from the bottom to avoid overlapping with the bottom bar */
-  }
+    .mapboxgl-ctrl-bottom-right {
+      bottom: 90px;
+    }
 
-  .mapboxgl-ctrl-bottom-left {
-    bottom: 90px; /* Adjust the distance from the bottom to avoid overlapping with the bottom bar */
-    top: unset; /* Remove any top positioning */
-  }
+    .mapboxgl-ctrl-bottom-left {
+      bottom: 90px;
+      top: unset;
+    }
 
-
-
-  @media only screen and (min-width: 600px) {
+    @media only screen and (min-width: 600px) {
       .info-item {
-          flex-direction: row; /* Align items horizontally on larger screens */
+        flex-direction: row;
       }
-  }
+    }
 
-  #search {
-      width: 222px;
-      margin-left: 30px;
-      padding: 10px 0; /* Adjusted padding */
-      background-color: white;
+    #search {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1;
+      background-color: #fff;
       border-radius: 5px;
-  }
+      padding: 10px;
+    }
   </style>
-</head>  
-  
-<body>  
-  
-  <div id='map'></div>  
-  <div id="info"></div>
+</head>
+
+<body>
+
+  <div id='map'></div>
+  <div id="info">Wybierz trasę...</div>
   <div id="coords"></div>
-  
+
   <div id="search">
+    <button id="resetButton" onclick="reset()">Reset</button>
   </div>
 
+  <script>
 
-<script>
+    let pickupPoint = null;
+    let dropoffPoint = null;
+    let clickCounter = 0;
 
-let start = [19.3039985249618, 51.818758996283094]; // Starting position
-let destinations = []; // Array to store destinations
+    const start = [19.3039985249618, 51.818758996283094];
 
-mapboxgl.accessToken = 'pk.eyJ1IjoicXVhcnphIiwiYSI6ImNsdXk0NnF4NDByMHAybG55aTliZ2xwMG4ifQ.n0rAXFpOzrOgntCfPhcDCA';  
+    mapboxgl.accessToken = 'pk.eyJ1IjoicXVhcnphIiwiYSI6ImNsdXk0NnF4NDByMHAybG55aTliZ2xwMG4ifQ.n0rAXFpOzrOgntCfPhcDCA';
 
-const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v12',
-  center: start, // starting position
-  zoom: 12
-});
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: start,
+      zoom: 12
+    });
 
-  // Load the image
-map.loadImage(
-  'https://test.globalpet.pl/gb.png',
-  (error, image) => {
-    if (error) throw error;
-    // Add the loaded image to the map
-    map.addImage('custom-icon', image);
-  }
-);
+    map.on('load', () => {
+      // Add starting point to the map
+      map.loadImage(
+        'https://test.globalpet.pl/gb.png',
+        (error, image) => {
+          if (error) throw error;
+          // Add the loaded image to the map
+          map.addImage('custom-icon', image);
+          map.addLayer({
+            id: 'point',
+            type: 'symbol',
+            source: {
+              type: 'geojson',
+              data: {
+                type: 'FeatureCollection',
+                features: [
+                  {
+                    type: 'Feature',
+                    properties: {},
+                    geometry: {
+                      type: 'Point',
+                      coordinates: start
+                    }
+                  }
+                ]
+              }
+            },
+            layout: {
+              'icon-image': 'custom-icon',
+              'icon-size': 0.05
+            }
+          });
+        }
+      );
 
+      // Display initial route
+      getRoute(start, start, 'green');
+    });
 
-const geocoder = new MapboxGeocoder({
-  accessToken: mapboxgl.accessToken,
-  mapboxgl: mapboxgl,
-  marker: false
-});
+    // Load the geocoder
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl: mapboxgl,
+      marker: false
+    });
 
-document.getElementById('search').appendChild(geocoder.onAdd(map));
+    document.getElementById('search').appendChild(geocoder.onAdd(map));
 
-geocoder.on('result', (event) => {
-  const coordinates = event.result.geometry.coordinates;
-  destinations.push(coordinates); // Add new destination to the array
-  getRoute(destinations);
-});
-
-// Add click event listener to the map
-map.on('click', (event) => {
-  const coordinates = [event.lngLat.lng, event.lngLat.lat];
-  destinations.push(coordinates); // Add new destination to the array
-  getRoute(destinations);
-});
-
-// create a function to make a directions request
-async function getRoute(destinations) {
-  if(destinations.length < 2) return; // Wait until at least two destinations are available
-
-  let coordinatesString = '';
-  for(let i = 0; i < destinations.length; i++) {
-    coordinatesString += `${destinations[i][0]},${destinations[i][1]};`; // Append coordinates to the string
-  }
-  coordinatesString = coordinatesString.slice(0, -1); // Remove the last semicolon
-
-  // make a directions request using driving profile
-  const query = await fetch(
-    `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinatesString}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
-    { method: 'GET' }
-  );
-  const json = await query.json();
-  const data = json.routes[0];
-
-  const distanceInKm = Math.floor(data.distance / 1000);
-  const costPerKm = 1.2; // zl0.3 per kilometer
-  const totalCost = distanceInKm * costPerKm;
-
-  document.getElementById('info').innerHTML = `
-    <div class="info-item">
-        <p><strong>Czas: .</strong> </p>
-        <p> ${Math.floor(data.duration / 60)} min</p>
-    </div>
-    <div class="info-item">
-        <p><strong>Dystans: .</strong> </p>
-        <p> ${Math.floor(data.distance / 1000)} km</p>
-    </div>
-    <div class="info-item">
-        <p><strong>Cena: .</strong></p>
-        <p> ${totalCost.toFixed(2)}zl</p>
-    </div>
-  `;
-
-  const route = data.geometry.coordinates;
-  const geojson = {
-    type: 'Feature',
-    properties: {},
-    geometry: {
-      type: 'LineString',
-      coordinates: route
-    }
-  };
-  // if the route already exists on the map, we'll reset it using setData
-  if (map.getSource('route')) {
-    map.getSource('route').setData(geojson);
-  }
-  // otherwise, we'll make a new request
-  else {
+    // Function to handle map click event
+    map.on('click', (event) => {
+  if (clickCounter === 0) {
+    pickupPoint = [event.lngLat.lng, event.lngLat.lat];
     map.addLayer({
-      id: 'route',
-      type: 'line',
+      id: 'pickup-point',
+      type: 'circle',
       source: {
         type: 'geojson',
-        data: geojson
-      },
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'Point',
+                coordinates: pickupPoint
+              }
+            }
+          ]
+        }
       },
       paint: {
-        'line-color': '#34a352',
-        'line-width': 5,
-        'line-opacity': 0.75
+        'circle-radius': 6,
+        'circle-color': 'green'
       }
     });
-  }
-}
-
-map.on('load', () => {
-  // make an initial directions request that
-  // starts and ends at the same location
-  
-  // Add starting point to the map
-  map.addLayer({
-    id: 'point',
-    type: 'symbol', // Change the type to 'symbol' to display an image
-    source: {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'Point',
-              coordinates: start // Starting position
-            }
+    getRoute(start, pickupPoint, 'green'); // Route between start and pickup
+    clickCounter++;
+    document.getElementById('info').innerText = 'Wybierz punkt docelowy...';
+    } else if (clickCounter === 1) {
+      dropoffPoint = [event.lngLat.lng, event.lngLat.lat];
+      map.addLayer({
+        id: 'dropoff-point',
+        type: 'circle',
+        source: {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Point',
+                  coordinates: dropoffPoint
+                }
+              }
+            ]
           }
-        ]
-      }
-    },
-    layout: {
-      'icon-image': 'custom-icon', // Use the name of the image added with map.addImage()
-      'icon-size': 0.05 // Adjust the icon size if needed
+        },
+        paint: {
+          'circle-radius': 6,
+          'circle-color': 'blue'
+        }
+      });
+      getRoute(pickupPoint, dropoffPoint, 'blue'); // Route between pickup and dropoff
+      getRoute(dropoffPoint, start, 'red'); // Route from dropoff back to start
+      clickCounter = 0;
     }
   });
+  
+    // Function to reset the map and clear pickup and dropoff points
+    function reset() {
+      pickupPoint = null;
+      dropoffPoint = null;
+      clickCounter = 0;
+      map.flyTo({
+        center: start,
+        zoom: 12
+      });
+      map.getSource('route') && map.removeLayer('route') && map.removeSource('route');
+      map.getSource('pickup-point') && map.removeLayer('pickup-point') && map.removeSource('pickup-point');
+      map.getSource('dropoff-point') && map.removeLayer('dropoff-point') && map.removeSource('dropoff-point');
+      document.getElementById('info').innerText = 'Wybierz trasę...';
+    }
 
-  // Initialize the route with the starting position
-  getRoute([start]);
-});
+    // Function to fetch route for a point
+    async function getRoute(start, end, color) {
+      const query = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+        { method: 'GET' }
+      );
+      const json = await query.json();
+      const data = json.routes[0];
 
-const coordinatesForm = document.getElementById('coordinatesForm');
-const latitudeInput = document.getElementById('latitude');
-const longitudeInput = document.getElementById('longitude');
+      const distanceInKm = Math.floor(data.distance / 1000);
+      const costPerKm = 1.2;
+      const totalCost = distanceInKm * costPerKm;
 
-// Set the initial values of the input fields
-latitudeInput.value = start[1];
-longitudeInput.value = start[0];
+      if (data.distance == 0) {
+        document.getElementById('info').innerHTML = `
+          <p> Wybierz trase... </p>
+        `;
+      } else {
+        document.getElementById('info').innerHTML = `
+          <div class="info-item">
+              <p><strong>Czas: .</strong> </p>
+              <p> ${Math.floor(data.duration / 60)} min</p>
+          </div>
+          <div class="info-item">
+              <p><strong>Dystans: .</strong> </p>
+              <p> ${distanceInKm} km</p>
+          </div>
+          <div class="info-item">
+              <p><strong>Cena: .</strong></p>
+              <p> ${totalCost.toFixed(2)} zł</p>
+          </div>
+        `;
+      }
 
-coordinatesForm.addEventListener('submit', function(event) {
-    event.preventDefault(); // Prevent the default form submission
+      const route = data.geometry.coordinates;
+      const geojson = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: route
+        }
+      };
+      map.addLayer({
+        id: 'route',
+        type: 'line',
+        source: {
+          type: 'geojson',
+          data: geojson
+        },
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': color,
+          'line-width': 5,
+          'line-opacity': 0.75
+        }
+      });
+    }
 
-    // Get the values from the input fields
-    const latitude = parseFloat(latitudeInput.value);
-    const longitude = parseFloat(longitudeInput.value);
-
-    // Update the start variable
-    start[1] = latitude;
-    start[0] = longitude;
-
-    // Display a confirmation message
-    alert('Start coordinates updated successfully!');
-});
-
-</script>  
-</body>  
+  </script>
+</body>
 </html>
