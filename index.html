@@ -96,7 +96,8 @@
 
 <script>
 
-const start = [19.3039985249618, 51.818758996283094]; // Starting position
+let start = [19.3039985249618, 51.818758996283094]; // Starting position
+let destinations = []; // Array to store destinations
 
 mapboxgl.accessToken = 'pk.eyJ1IjoicXVhcnphIiwiYSI6ImNsdXk0NnF4NDByMHAybG55aTliZ2xwMG4ifQ.n0rAXFpOzrOgntCfPhcDCA';  
 
@@ -128,116 +129,30 @@ document.getElementById('search').appendChild(geocoder.onAdd(map));
 
 geocoder.on('result', (event) => {
   const coordinates = event.result.geometry.coordinates;
-  const end = {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'Point',
-          coordinates: coordinates
-        }
-      }
-    ]
-  };
-
-  getRoute(coordinates);
-
-  // Remove existing end destination layer if it exists
-  if (map.getLayer('end-point')) {
-    map.removeLayer('end-point');
-    map.removeSource('end-point');
-  }
-
-  // Add a new layer to display the end destination
-  map.addLayer({
-    id: 'end-point',
-    type: 'circle',
-    source: {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'Point',
-              coordinates: coordinates
-            }
-          }
-        ]
-      }
-    },
-    paint: {
-      'circle-radius': 10,
-      'circle-color': '#ff0000' // Red color for end destination
-    }
-  });
+  destinations.push(coordinates); // Add new destination to the array
+  getRoute(destinations);
 });
 
-// Add click event listener to the map
 // Add click event listener to the map
 map.on('click', (event) => {
   const coordinates = [event.lngLat.lng, event.lngLat.lat];
-  getRoute(coordinates);
-  
-  document.getElementById('info').innerHTML = `
-  <p> Szukam najlepszej trasy... </p>
-    `;
-
-  // Remove existing end destination layer if it exists
-  if (map.getLayer('end-point')) {
-    map.removeLayer('end-point');
-    map.removeSource('end-point');
-  }
-
-  // Add a new layer to display the end destination
-  map.addLayer({
-    id: 'end-point',
-    type: 'circle',
-    source: {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'Point',
-              coordinates: coordinates
-            }
-          }
-        ]
-      }
-    },
-    paint: {
-      'circle-radius': 10,
-      'circle-color': '#ff0000' // Red color for end destination
-    }
-
-  });
-
-  // Show coordinates
-  document.getElementById('coords').innerHTML = `
-  <div id="coordinates">
-    <p> Coordinates: </p>
-    <p>   Longitude: ${coordinates[0]} </p>
-    <p>   Latitude: ${coordinates[1]} </p>
-
-  </div>
-  `;
+  destinations.push(coordinates); // Add new destination to the array
+  getRoute(destinations);
 });
 
-
 // create a function to make a directions request
-async function getRoute(end) {
+async function getRoute(destinations) {
+  if(destinations.length < 2) return; // Wait until at least two destinations are available
 
-  // make a directions request using cycling profile
+  let coordinatesString = '';
+  for(let i = 0; i < destinations.length; i++) {
+    coordinatesString += `${destinations[i][0]},${destinations[i][1]};`; // Append coordinates to the string
+  }
+  coordinatesString = coordinatesString.slice(0, -1); // Remove the last semicolon
+
+  // make a directions request using driving profile
   const query = await fetch(
-    `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+    `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinatesString}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
     { method: 'GET' }
   );
   const json = await query.json();
@@ -247,28 +162,20 @@ async function getRoute(end) {
   const costPerKm = 1.2; // zl0.3 per kilometer
   const totalCost = distanceInKm * costPerKm;
 
-  if(data.distance == 0){
-    document.getElementById('info').innerHTML = `
-      <p> Wybierz trase... </p>
-    `;
-  }
-
-  else {
-    document.getElementById('info').innerHTML = `
-      <div class="info-item">
-          <p><strong>Czas: .</strong> </p>
-          <p> ${Math.floor(data.duration / 60)} min</p>
-      </div>
-      <div class="info-item">
-          <p><strong>Dystans: .</strong> </p>
-          <p> ${Math.floor(data.distance / 1000)} km</p>
-      </div>
-      <div class="info-item">
-          <p><strong>Cena: .</strong></p>
-          <p> ${totalCost.toFixed(2)}zl</p>
-      </div>
-    `;
-  }
+  document.getElementById('info').innerHTML = `
+    <div class="info-item">
+        <p><strong>Czas: .</strong> </p>
+        <p> ${Math.floor(data.duration / 60)} min</p>
+    </div>
+    <div class="info-item">
+        <p><strong>Dystans: .</strong> </p>
+        <p> ${Math.floor(data.distance / 1000)} km</p>
+    </div>
+    <div class="info-item">
+        <p><strong>Cena: .</strong></p>
+        <p> ${totalCost.toFixed(2)}zl</p>
+    </div>
+  `;
 
   const route = data.geometry.coordinates;
   const geojson = {
@@ -335,7 +242,8 @@ map.on('load', () => {
     }
   });
 
-  getRoute(start); // Initial route
+  // Initialize the route with the starting position
+  getRoute([start]);
 });
 
 const coordinatesForm = document.getElementById('coordinatesForm');
